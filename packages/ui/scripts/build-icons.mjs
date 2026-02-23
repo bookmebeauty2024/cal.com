@@ -134,8 +134,17 @@ async function writeIfChanged(filepath, newContent) {
     .readFile(filepath, "utf8")
     .catch(() => "");
   if (currentContent === newContent) return false;
+  // await fsExtra.writeFile(filepath, newContent, "utf8");
+  // await $`node ${biomeBin} format --write ${filepath}`;
+  // return true;
   await fsExtra.writeFile(filepath, newContent, "utf8");
-  await $`node ${biomeBin} format --write ${filepath}`;
+
+  try {
+    await $`node ${biomeBin} format --write ${filepath}`;
+  } catch (err) {
+    console.log(`Biome skipped formatting: ${filepath}`);
+  }
+
   return true;
 }
 
