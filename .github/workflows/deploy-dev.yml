@@ -43,6 +43,8 @@
             
 #             pm2 save
 
+
+
 name: Deploy Dev
 
 on:
@@ -63,58 +65,43 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
 
           script: |
-
             echo "==============================="
             echo "🚀 STARTING ZERO-DOWNTIME DEPLOY"
             echo "==============================="
-
             cd /var/www
-
             CURRENT=$(readlink calcom-dev)
-
-            echo "Current release: $CURRENT"
-
+            echo "Current active release:"
+            echo $CURRENT
             if [ "$CURRENT" = "/var/www/calcom-dev-blue" ]; then
               TARGET="calcom-dev-green"
             else
               TARGET="calcom-dev-blue"
             fi
-
-            echo "Deploying into: $TARGET"
-
+            echo "--------------------------------"
+            echo "🎯 Deploy target: $TARGET"
+            echo "--------------------------------"
             cd /var/www/$TARGET
-
-            echo "✅ Enabling Corepack"
-            corepack enable
-            corepack prepare yarn@4.12.0 --activate
-
-            echo "⬇️ Updating source"
-            git fetch origin
-            git reset --hard origin/develop
-
-            echo "🧹 Cleaning build"
+            echo "🧹 Cleaning old build..."
             rm -rf apps/web/.next
             rm -rf node_modules/.cache
-
-            echo "📦 Installing deps"
+            echo "⬇️ Pulling latest develop branch..."
+            git fetch origin
+            git reset --hard origin/develop
+            echo "📦 Installing dependencies..."
             yarn install --immutable
-
-            echo "🏗 Building WEB"
+            echo "🏗 Building WEB..."
             yarn workspace @calcom/web build
-
-            echo "🏗 Building API"
+            echo "🏗 Building API..."
             yarn workspace @calcom/api build
-
-            echo "🔁 Switching symlink"
+            echo "✅ Build completed"
+            echo "--------------------------------"
+            echo "🔁 Switching live release..."
+            echo "--------------------------------"
             ln -sfn /var/www/$TARGET /var/www/calcom-dev
-
-            echo "♻️ Reloading PM2 apps"
-            pm2 reload calcom-web-dev
-            pm2 reload calcom-api-dev
-
-            echo "💾 Saving PM2"
+            echo "♻️ Reloading PM2 (zero downtime)..."
+            pm2 reload ecosystem.config.js
+            echo "💾 Saving PM2 state..."
             pm2 save
-
-            echo "=============================="
-            echo "✅ ZERO-DOWNTIME DEPLOY DONE"
-            echo "=============================="
+            echo "==============================="
+            echo "✅ DEPLOY SUCCESSFUL"
+            echo "==============================="
