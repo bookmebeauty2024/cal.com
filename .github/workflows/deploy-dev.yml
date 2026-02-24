@@ -71,10 +71,6 @@ jobs:
 
             cd /var/www
 
-            #########################################
-            # Detect Active Release
-            #########################################
-
             CURRENT=$(readlink calcom-dev)
 
             echo "Current active release:"
@@ -86,55 +82,44 @@ jobs:
               TARGET="calcom-dev-blue"
             fi
 
-            echo "-------------------------------------"
             echo "🎯 Deploy target: $TARGET"
-            echo "-------------------------------------"
 
             cd /var/www/$TARGET
 
-            #########################################
-            # Cleanup Previous Build
-            #########################################
+            ###################################
+            # CLEAN BUILD
+            ###################################
 
-            echo "🧹 Cleaning old build..."
+            echo "🧹 Cleaning build..."
             rm -rf apps/web/.next || true
             rm -rf node_modules/.cache || true
             rm -f apps/web/.next/lock || true
 
-            #########################################
-            # Kill Stale Processes (IMPORTANT)
-            #########################################
+            ###################################
+            # UPDATE CODE
+            ###################################
 
-            echo "🛑 Killing stale Next/Turbo processes..."
-            pkill -f next || true
-            pkill -f turbo || true
-
-            #########################################
-            # Pull Latest Code
-            #########################################
-
-            echo "⬇️ Pulling latest develop branch..."
+            echo "⬇️ Updating code..."
             git fetch origin
             git reset --hard origin/develop
 
-            #########################################
-            # Yarn 4 Fix (VERY IMPORTANT)
-            #########################################
+            ###################################
+            # YARN 4
+            ###################################
 
-            echo "⚙️ Enabling Corepack..."
             corepack enable
             corepack prepare yarn@4.12.0 --activate
 
-            #########################################
-            # Install Dependencies
-            #########################################
+            ###################################
+            # INSTALL
+            ###################################
 
-            echo "📦 Installing dependencies..."
+            echo "📦 Installing deps..."
             yarn install --immutable
 
-            #########################################
-            # Build Applications
-            #########################################
+            ###################################
+            # BUILD
+            ###################################
 
             echo "🏗 Building WEB..."
             script -q -c "yarn workspace @calcom/web build" /dev/null
@@ -142,28 +127,20 @@ jobs:
             echo "🏗 Building API..."
             script -q -c "yarn workspace @calcom/api build" /dev/null
 
-            echo "✅ Build completed"
+            ###################################
+            # SWITCH RELEASE
+            ###################################
 
-            #########################################
-            # Switch Live Release
-            #########################################
-
-            echo "-------------------------------------"
-            echo "🔁 Switching live release..."
-            echo "-------------------------------------"
-
+            echo "🔁 Switching release..."
             ln -sfn /var/www/$TARGET /var/www/calcom-dev
 
-            #########################################
-            # Reload PM2 (ZERO DOWNTIME)
-            #########################################
+            ###################################
+            # ZERO DOWNTIME RELOAD
+            ###################################
 
             echo "♻️ Reloading PM2..."
             pm2 startOrReload ecosystem.config.js
 
-            echo "💾 Saving PM2 state..."
             pm2 save
 
-            echo "====================================="
-            echo "✅ DEPLOY SUCCESSFUL"
-            echo "====================================="
+            echo "✅ DEPLOY COMPLETE"
