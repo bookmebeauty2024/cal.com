@@ -43,8 +43,6 @@
             
 #             pm2 save
 
-
-
 name: Deploy Dev
 
 on:
@@ -63,45 +61,109 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
+          command_timeout: 60m
 
           script: |
-            echo "==============================="
+
+            echo "====================================="
             echo "🚀 STARTING ZERO-DOWNTIME DEPLOY"
-            echo "==============================="
+            echo "====================================="
+
             cd /var/www
+
+            #########################################
+            # Detect Active Release
+            #########################################
+
             CURRENT=$(readlink calcom-dev)
+
             echo "Current active release:"
             echo $CURRENT
+
             if [ "$CURRENT" = "/var/www/calcom-dev-blue" ]; then
               TARGET="calcom-dev-green"
             else
               TARGET="calcom-dev-blue"
             fi
-            echo "--------------------------------"
+
+            echo "-------------------------------------"
             echo "🎯 Deploy target: $TARGET"
-            echo "--------------------------------"
+            echo "-------------------------------------"
+
             cd /var/www/$TARGET
+
+            #########################################
+            # Cleanup Previous Build
+            #########################################
+
             echo "🧹 Cleaning old build..."
-            rm -rf apps/web/.next
-            rm -rf node_modules/.cache
+            rm -rf apps/web/.next || true
+            rm -rf node_modules/.cache || true
+            rm -f apps/web/.next/lock || true
+
+            #########################################
+            # Kill Stale Processes (IMPORTANT)
+            #########################################
+
+            echo "🛑 Killing stale Next/Turbo processes..."
+            pkill -f next || true
+            pkill -f turbo || true
+
+            #########################################
+            # Pull Latest Code
+            #########################################
+
             echo "⬇️ Pulling latest develop branch..."
             git fetch origin
             git reset --hard origin/develop
+
+            #########################################
+            # Yarn 4 Fix (VERY IMPORTANT)
+            #########################################
+
+            echo "⚙️ Enabling Corepack..."
+            corepack enable
+            corepack prepare yarn@4.12.0 --activate
+
+            #########################################
+            # Install Dependencies
+            #########################################
+
             echo "📦 Installing dependencies..."
             yarn install --immutable
+
+            #########################################
+            # Build Applications
+            #########################################
+
             echo "🏗 Building WEB..."
-            yarn workspace @calcom/web build
+            script -q -c "yarn workspace @calcom/web build" /dev/null
+
             echo "🏗 Building API..."
-            yarn workspace @calcom/api build
+            script -q -c "yarn workspace @calcom/api build" /dev/null
+
             echo "✅ Build completed"
-            echo "--------------------------------"
+
+            #########################################
+            # Switch Live Release
+            #########################################
+
+            echo "-------------------------------------"
             echo "🔁 Switching live release..."
-            echo "--------------------------------"
+            echo "-------------------------------------"
+
             ln -sfn /var/www/$TARGET /var/www/calcom-dev
-            echo "♻️ Reloading PM2 (zero downtime)..."
-            pm2 reload ecosystem.config.js
+
+            #########################################
+            # Reload PM2 (ZERO DOWNTIME)
+            #########################################
+
+            echo "♻️ Reloading PM2..."
+            pm2 startOrReload ecosystem.config.js
+
             echo "💾 Saving PM2 state..."
             pm2 save
-            echo "==============================="
+
+            echo "====================================="
             echo "✅ DEPLOY SUCCESSFUL"
-            echo "==============================="
+            echo "====================================="
