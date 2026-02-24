@@ -10,11 +10,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy
+      - name: Deploy to Dev Server
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: 217.77.15.76
-          username: deploy
+          host: ${{ secrets.SSH_HOST }} 
+          username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
             cd /var/www/calcom-dev
