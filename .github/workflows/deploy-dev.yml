@@ -1,0 +1,30 @@
+name: Deploy Dev
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to Contabo
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 217.77.15.76
+          username: deploy
+          key: ${{ secrets.CONTABO_SSH_KEY }}
+          script: |
+            cd /var/www/calcom-dev
+
+            git fetch origin
+            git reset --hard origin/develop
+
+            yarn install --immutable
+
+            yarn build
+
+            pm2 restart calcom-web-dev
+            pm2 restart calcom-api-dev
