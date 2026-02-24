@@ -15,7 +15,7 @@ jobs:
         with:
           host: 217.77.15.76
           username: deploy
-          key: ${{ secrets.CONTABO_SSH_KEY }}
+          key: ${{ secrets.SSH_KEY }}
           script: |
             cd /var/www/calcom-dev
 
