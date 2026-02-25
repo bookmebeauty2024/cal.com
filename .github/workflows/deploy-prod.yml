@@ -1,16 +1,16 @@
-name: Deploy Dev
+name: Deploy Prod
 
 on:
   push:
     branches:
-      - develop
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Zero Downtime Deploy
+      - name: Zero Downtime PROD Deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -21,20 +21,20 @@ jobs:
           script: |
 
             echo "====================================="
-            echo "🚀 STARTING ZERO-DOWNTIME DEPLOY"
+            echo "🚀 STARTING ZERO-DOWNTIME PROD DEPLOY"
             echo "====================================="
 
             cd /var/www
 
-            CURRENT=$(readlink calcom-dev)
+            CURRENT=$(readlink calcom-prod)
 
             echo "Current active release:"
             echo $CURRENT
 
-            if [ "$CURRENT" = "/var/www/calcom-dev-blue" ]; then
-              TARGET="calcom-dev-green"
+            if [ "$CURRENT" = "/var/www/calcom-prod-blue" ]; then
+              TARGET="calcom-prod-green"
             else
-              TARGET="calcom-dev-blue"
+              TARGET="calcom-prod-blue"
             fi
 
             echo "🎯 Deploy target: $TARGET"
@@ -56,7 +56,7 @@ jobs:
 
             echo "⬇️ Updating code..."
             git fetch origin
-            git reset --hard origin/develop
+            git reset --hard origin/main
 
             ###################################
             # YARN 4
@@ -87,15 +87,15 @@ jobs:
             ###################################
 
             echo "🔁 Switching release..."
-            ln -sfn /var/www/$TARGET /var/www/calcom-dev
+            ln -sfn /var/www/$TARGET /var/www/calcom-prod
 
             ###################################
             # ZERO DOWNTIME RELOAD
             ###################################
 
             echo "♻️ Reloading PM2..."
-            pm2 delete calcom-web-dev || true
-            pm2 delete calcom-api-dev || true
+            pm2 delete calcom-web-prod || true
+            pm2 delete calcom-api-prod || true
 
             pm2 start ecosystem.config.js
 
