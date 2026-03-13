@@ -176,7 +176,7 @@ export const schemaUserReadPublic = UserSchema.pick({
   role: true,
 }).extend({
   // API v1 backward compatibility: expose avatarUrl as avatar
-  avatar: UserSchema.shape.avatarUrl,
+  avatar: UserSchema.shape.avatarUrl.nullable().optional().default(null),
 });
 
 export const schemaUsersReadPublic = z.array(schemaUserReadPublic);

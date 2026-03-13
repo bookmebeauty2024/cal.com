@@ -1059,6 +1059,23 @@ export class AvailableSlotsService {
 
     const eventType = await this.getRegularOrDynamicEventType(input, orgDetails);
 
+    if (process.env.DEBUG_SLOTS === "true") {
+      console.log("========== CALCOM DEBUG ==========");
+      console.log("EVENT TYPE", {
+        id: eventType?.id,
+        slug: eventType?.slug,
+        length: eventType?.length,
+        teamId: eventType?.team?.id,
+        schedulingType: eventType?.schedulingType,
+        hosts: eventType?.hosts?.map((h) => ({
+          userId: h.user?.id,
+          scheduleId: h.schedule?.id,
+          isFixed: h.isFixed,
+        })),
+      });
+      console.log("==================================");
+    }
+
     if (!eventType) {
       throw new TRPCError({ code: "NOT_FOUND" });
     }
@@ -1146,6 +1163,23 @@ export class AvailableSlotsService {
 
     const allHosts = [...eligibleQualifiedRRHosts, ...eligibleFixedHosts];
 
+    if (process.env.DEBUG_SLOTS === "true") {
+      console.log("========== CALCOM DEBUG ==========");
+      console.log("EVENT TYPE", {
+        id: eventType?.id,
+        slug: eventType?.slug,
+        length: eventType?.length,
+        teamId: eventType?.team?.id,
+        schedulingType: eventType?.schedulingType,
+        hosts: eventType?.hosts?.map((h) => ({
+          userId: h.user?.id,
+          scheduleId: h.schedule?.id,
+          isFixed: h.isFixed,
+        })),
+      });
+      console.log("==================================");
+    }
+
     // If all hosts are blocked, return empty slots
     if (allHosts.length === 0) {
       loggerWithEventDetails.info("All hosts are blocked by watchlist, returning empty slots");
@@ -1182,6 +1216,10 @@ export class AvailableSlotsService {
 
     let aggregatedAvailability = getAggregatedAvailability(allUsersAvailability, eventType.schedulingType);
 
+    if (process.env.DEBUG_SLOTS === "true") {
+      console.log("AGGREGATED AVAILABILITY", aggregatedAvailability);
+    }
+    
     // Fairness and Contact Owner have fallbacks because we check for within 2 weeks
     if (hasFallbackRRHosts) {
       let diff = 0;
@@ -1262,6 +1300,10 @@ export class AvailableSlotsService {
       showOptimizedSlots: eventType.showOptimizedSlots,
       datesOutOfOfficeTimeZone: !isTeamEvent ? allUsersAvailability[0]?.timeZone : undefined,
     });
+
+    if (process.env.DEBUG_SLOTS === "true") {
+      console.log("RAW TIME SLOTS", timeSlots);
+    }
 
     let availableTimeSlots: typeof timeSlots = [];
     const bookerClientUid = ctx?.req?.cookies?.uid;
@@ -1589,6 +1631,10 @@ export class AvailableSlotsService {
           },
         }
       : null;
+
+      if (process.env.DEBUG_SLOTS === "true") {
+        console.log("FINAL SLOTS", filteredSlotsMappedToDate);
+      }
 
     return {
       slots: filteredSlotsMappedToDate,
