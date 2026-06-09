@@ -16,7 +16,10 @@ import { ScopeOfAdmin } from "../utils/scopeOfAdmin";
 export const verifyApiKey: NextMiddleware = async (req, res, next) => {
   const deploymentRepo = new DeploymentRepository(prisma);
   const licenseKeyService = await LicenseKeySingleton.getInstance(deploymentRepo);
-  const hasValidLicense = await licenseKeyService.checkLicense();
+  const hasValidLicense =
+  process.env.DISABLE_LICENSE_CHECK === "true"
+    ? true
+    : await licenseKeyService.checkLicense();
 
   if (!hasValidLicense && IS_PRODUCTION) {
     return res.status(401).json({ message: "Invalid or missing CALCOM_LICENSE_KEY environment variable" });

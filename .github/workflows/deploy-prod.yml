@@ -1,0 +1,104 @@
+name: Deploy Prod
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Zero Downtime PROD Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          command_timeout: 60m
+
+          script: |
+
+            echo "====================================="
+            echo "🚀 STARTING ZERO-DOWNTIME PROD DEPLOY"
+            echo "====================================="
+
+            cd /var/www
+
+            CURRENT=$(readlink calcom-prod)
+
+            echo "Current active release:"
+            echo $CURRENT
+
+            if [ "$CURRENT" = "/var/www/calcom-prod-blue" ]; then
+              TARGET="calcom-prod-green"
+            else
+              TARGET="calcom-prod-blue"
+            fi
+
+            echo "🎯 Deploy target: $TARGET"
+
+            cd /var/www/$TARGET
+
+            ###################################
+            # CLEAN BUILD
+            ###################################
+
+            echo "🧹 Cleaning build..."
+            rm -rf apps/web/.next || true
+            rm -rf node_modules/.cache || true
+            rm -f apps/web/.next/lock || true
+
+            ###################################
+            # UPDATE CODE
+            ###################################
+
+            echo "⬇️ Updating code..."
+            git fetch origin
+            git reset --hard origin/main
+
+            ###################################
+            # YARN 4
+            ###################################
+
+            corepack enable
+            corepack prepare yarn@4.12.0 --activate
+
+            ###################################
+            # INSTALL
+            ###################################
+
+            echo "📦 Installing deps..."
+            yarn install --immutable
+
+            ###################################
+            # BUILD
+            ###################################
+
+            echo "🏗 Building WEB..."
+            script -q -c "yarn workspace @calcom/web build" /dev/null
+
+            echo "🏗 Building API..."
+            script -q -c "yarn workspace @calcom/api build" /dev/null
+
+            ###################################
+            # SWITCH RELEASE
+            ###################################
+
+            echo "🔁 Switching release..."
+            ln -sfn /var/www/$TARGET /var/www/calcom-prod
+
+            ###################################
+            # ZERO DOWNTIME RELOAD
+            ###################################
+
+            echo "♻️ Reloading PM2..."
+            pm2 delete calcom-web-prod || true
+            pm2 delete calcom-api-prod || true
+
+            pm2 start ecosystem.config.js
+
+            pm2 save
+
+            echo "✅ DEPLOY COMPLETE"
